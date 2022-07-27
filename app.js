@@ -3,45 +3,58 @@ const ajax = new XMLHttpRequest();
 const content = document.createElement("div");
 const NEWS_URL = "https://api.hnpwa.com/v0/news/1.json";
 const CONTENT_URL = "https://api.hnpwa.com/v0/item/@id.json";
+const store = {
+  currentPage: 1,
+};
 
 const getData = (url) => {
   ajax.open("GET", url, false);
   ajax.send();
+
   return JSON.parse(ajax.response);
 };
 
 const newsFeed = () => {
   const newsFeeds = getData(NEWS_URL);
   const newsList = [];
-  newsList.push("<ul>");
+  let template = `
+<div class="container mx-auto p-4">
+  <h1>Hacker News</h1>
+  <ul>
+    {{__news_feeds__}}
+  </ul>
+  <div>
+    <a href="#/page/{{__prev_page__}}">이전 페이지</a>
+    <a href="#/page/{{__next_page__}}">다음 페이지</a>
+</div>
+`;
 
-  for (let i = 0; i < 10; i++) {
+  for (let i = (store.currentPage - 1) * 10; i < store.currentPage * 10; i++) {
     newsList.push(`
-  <li>
-    <a href="#${newsFeeds[i].id}">
-      ${newsFeeds[i].title} (${newsFeeds[i].comments_count})
-    </a>
-  </li>
+      <li>
+        <a href="#/show/${newsFeeds[i].id}">
+          ${newsFeeds[i].title} (${newsFeeds[i].comments_count})
+        </a>
+      </li>
   `);
   }
-  newsList.push("</ul>");
 
-  container.innerHTML = newsList.join("");
+  template = template.replace(`{{__news_feeds__}}`, newsList.join(""));
+  template = template.replace(`{{__prev_page__}}`, store.currentPage > 1 ? store.currentPage - 1 : 1);
+  template = template.replace(`{{__next_page__}}`, store.currentPage + 1);
+
+  container.innerHTML = template;
 };
 
-const ul = document.createElement("ul");
-
 const newsDetail = () => {
-  const id = location.hash.substring(1);
-
+  const id = location.hash.substring(7);
   const newsContents = getData(CONTENT_URL.replace("@id", id));
 
-  const title = document.createElement("h1");
   container.innerHTML = `
   <h1>${newsContents.title}</h1>
 
   <div>
-    <a href="#">목록으로</a>
+    <a href="#/page/${store.currentPage}">목록으로</a>
   </div>
   `;
 };
@@ -50,6 +63,9 @@ const router = () => {
   const routePath = location.hash;
 
   if (routePath === "") {
+    newsFeed();
+  } else if (routePath.indexOf("#/page/") >= 0) {
+    store.currentPage = Number(routePath.substring(7));
     newsFeed();
   } else {
     newsDetail();
